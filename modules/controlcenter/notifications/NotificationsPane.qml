@@ -26,6 +26,7 @@ Item {
 
     property int maxToasts: Config.utilities.maxToasts ?? 4
     property string toastsFullscreen: Config.utilities.toasts.fullscreen ?? "off"
+    property string toastPosition: effectiveToastPosition(Config.utilities.toasts.position ?? "bottom-right")
     property bool chargingChanged: GlobalConfig.utilities.toasts.chargingChanged ?? true
     property bool gameModeChanged: GlobalConfig.utilities.toasts.gameModeChanged ?? true
     property bool dndChanged: GlobalConfig.utilities.toasts.dndChanged ?? true
@@ -37,6 +38,13 @@ Item {
     property bool vpnChanged: GlobalConfig.utilities.toasts.vpnChanged ?? true
     property bool nowPlaying: GlobalConfig.utilities.toasts.nowPlaying ?? false
 
+    function effectiveToastPosition(position: string): string {
+        if (position === "top-left" || position === "top-right" || position === "bottom-left" || position === "bottom-right")
+            return position;
+
+        return "bottom-right";
+    }
+
     function saveConfig(): void {
         GlobalConfig.notifs.expire = root.notificationsExpire;
         GlobalConfig.notifs.fullscreen = root.notificationsFullscreen;
@@ -46,6 +54,7 @@ Item {
 
         GlobalConfig.utilities.maxToasts = root.maxToasts;
         GlobalConfig.utilities.toasts.fullscreen = root.toastsFullscreen;
+        GlobalConfig.utilities.toasts.position = root.toastPosition;
         GlobalConfig.utilities.toasts.chargingChanged = root.chargingChanged;
         GlobalConfig.utilities.toasts.gameModeChanged = root.gameModeChanged;
         GlobalConfig.utilities.toasts.dndChanged = root.dndChanged;
@@ -308,6 +317,92 @@ Item {
                             onValueModified: value => {
                                 root.maxToasts = value;
                                 root.saveConfig();
+                            }
+                        }
+
+                        SplitButtonRow {
+                            id: toastPositionSelector
+
+                            function syncActiveItem(): void {
+                                if (root.toastPosition === "top-left") {
+                                    active = toastPositionTopLeftItem;
+                                    return;
+                                }
+
+                                if (root.toastPosition === "top-right") {
+                                    active = toastPositionTopRightItem;
+                                    return;
+                                }
+
+                                if (root.toastPosition === "bottom-left") {
+                                    active = toastPositionBottomLeftItem;
+                                    return;
+                                }
+
+                                active = toastPositionBottomRightItem;
+                            }
+
+                            Layout.fillWidth: true
+                            z: expanded ? 99 : 0
+                            label: qsTr("Toast position")
+                            menuItems: [toastPositionTopLeftItem, toastPositionTopRightItem, toastPositionBottomLeftItem, toastPositionBottomRightItem]
+
+                            Component.onCompleted: syncActiveItem()
+
+                            Connections {
+                                function onToastPositionChanged(): void {
+                                    toastPositionSelector.syncActiveItem();
+                                }
+
+                                target: root
+                            }
+
+                            MenuItem {
+                                id: toastPositionTopLeftItem
+
+                                text: qsTr("Top left")
+                                icon: "north_west"
+                                activeText: qsTr("Top left")
+                                onClicked: {
+                                    root.toastPosition = "top-left";
+                                    root.saveConfig();
+                                }
+                            }
+
+                            MenuItem {
+                                id: toastPositionTopRightItem
+
+                                text: qsTr("Top right")
+                                icon: "north_east"
+                                activeText: qsTr("Top right")
+                                onClicked: {
+                                    root.toastPosition = "top-right";
+                                    root.saveConfig();
+                                }
+                            }
+
+                            MenuItem {
+                                id: toastPositionBottomLeftItem
+
+                                text: qsTr("Bottom left")
+                                icon: "south_west"
+                                activeText: qsTr("Bottom left")
+                                onClicked: {
+                                    root.toastPosition = "bottom-left";
+                                    root.saveConfig();
+                                }
+                            }
+
+                            MenuItem {
+                                id: toastPositionBottomRightItem
+
+                                text: qsTr("Bottom right")
+                                icon: "south_east"
+                                activeText: qsTr("Bottom right")
+                                onClicked: {
+                                    root.toastPosition = "bottom-right";
+                                    root.saveConfig();
+                                }
                             }
                         }
 

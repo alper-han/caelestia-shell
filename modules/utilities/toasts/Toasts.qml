@@ -11,6 +11,8 @@ Item {
     id: root
 
     readonly property int spacing: Tokens.spacing.small
+    readonly property bool growsDown: position.startsWith("top-")
+    property string position: "bottom-right"
     property bool flag
 
     function shouldShowToast(toast: Toast): bool {
@@ -81,8 +83,25 @@ Item {
         opacity: modelData.closed || previewHidden ? 0 : 1
         scale: modelData.closed || previewHidden ? 0.7 : 1
 
+        anchors.topMargin: {
+            root.flag; // Force update
+            if (!root.growsDown)
+                return 0;
+
+            let y = 0;
+            for (let i = 0; i < index; i++) {
+                const item = repeater.itemAt(i) as ToastWrapper;
+                if (item && !item.modelData.closed && !item.previewHidden)
+                    y += item.implicitHeight + root.spacing;
+            }
+            return y;
+        }
+
         anchors.bottomMargin: {
             root.flag; // Force update
+            if (root.growsDown)
+                return 0;
+
             let y = 0;
             for (let i = 0; i < index; i++) {
                 const item = repeater.itemAt(i) as ToastWrapper;
@@ -94,7 +113,8 @@ Item {
 
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.bottom: parent.bottom
+        anchors.top: root.growsDown ? parent.top : undefined
+        anchors.bottom: root.growsDown ? undefined : parent.bottom
         implicitHeight: toastInner.implicitHeight
 
         acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
@@ -116,7 +136,12 @@ Item {
 
         ParallelAnimation {
             running: toast.modelData.closed
-            onStarted: toast.anchors.bottomMargin = toast.anchors.bottomMargin
+            onStarted: {
+                if (root.growsDown)
+                    toast.anchors.topMargin = toast.anchors.topMargin;
+                else
+                    toast.anchors.bottomMargin = toast.anchors.bottomMargin;
+            }
             onFinished: toast.modelData.unlock(toast)
 
             Anim {
@@ -143,6 +168,12 @@ Item {
 
         Behavior on scale {
             Anim {}
+        }
+
+        Behavior on anchors.topMargin {
+            Anim {
+                type: Anim.DefaultSpatial
+            }
         }
 
         Behavior on anchors.bottomMargin {

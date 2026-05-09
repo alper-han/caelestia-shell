@@ -133,11 +133,20 @@ Item {
         anchors.right: parent.right
     }
 
+    readonly property string effectiveToastPosition: {
+        const position = Config.utilities.toasts.position ?? "bottom-right";
+        return ["top-left", "top-right", "bottom-left", "bottom-right"].includes(position) ? position : "bottom-right";
+    }
+
     Toasts.Toasts {
         id: toasts
 
-        anchors.bottom: sidebar.visible ? parent.bottom : utilities.top
-        anchors.right: sidebar.left
+        position: root.effectiveToastPosition
+
+        anchors.top: position.startsWith("top") ? parent.top : undefined
+        anchors.bottom: position.startsWith("bottom") ? (sidebar.visible ? parent.bottom : utilities.top) : undefined
+        anchors.left: position.endsWith("left") ? parent.left : undefined
+        anchors.right: position.endsWith("right") ? sidebar.left : undefined
         anchors.margins: Tokens.padding.normal
     }
 

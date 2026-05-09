@@ -696,6 +696,7 @@ For example, to disable the bar on DP-1:
         "enabled": true,
         "maxToasts": 4,
         "toasts": {
+            "position": "bottom-right",
             "audioInputChanged": true,
             "audioOutputChanged": true,
             "capsLockChanged": true,

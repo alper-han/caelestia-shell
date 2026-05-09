@@ -14,6 +14,7 @@ class UtilitiesToasts : public ConfigObject {
     QML_ANONYMOUS
 
     CONFIG_PROPERTY(QString, fullscreen, u"off"_s)
+    CONFIG_PROPERTY(QString, position, u"bottom-right"_s)
     CONFIG_GLOBAL_PROPERTY(bool, configLoaded, true)
     CONFIG_GLOBAL_PROPERTY(bool, chargingChanged, true)
     CONFIG_GLOBAL_PROPERTY(bool, gameModeChanged, true)
