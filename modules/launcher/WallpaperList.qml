@@ -6,6 +6,7 @@ import Quickshell
 import Caelestia.Config
 import qs.components.controls
 import qs.services
+import qs.utils
 
 PathView {
     id: root
@@ -22,10 +23,10 @@ PathView {
         if (!screen)
             return 0;
 
-        // Screen width - 4x outer rounding - 2x max side thickness (cause centered)
-        const barMargins = Math.max(Config.border.thickness, panels.bar.implicitWidth);
+        // Screen width - 4x outer rounding - 2x side obstructions (cause centered)
+        const barMargins = BarPosition.isVertical(panels.bar.position) ? Math.max(Config.border.thickness, panels.bar.implicitWidth) : Config.border.thickness;
         let outerMargins = 0;
-        if (panels.popouts.hasCurrent && panels.popouts.currentCenter + panels.popouts.nonAnimHeight / 2 > screen.height - content.implicitHeight - Config.border.thickness * 2)
+        if (BarPosition.isVertical(panels.bar.position) && panels.popouts.hasCurrent && panels.popouts.currentCenter + panels.popouts.nonAnimHeight / 2 > screen.height - content.implicitHeight - Config.border.thickness * 2)
             outerMargins = panels.popouts.nonAnimWidth;
         if ((visibilities.utilities || visibilities.sidebar) && panels.utilities.implicitWidth > outerMargins)
             outerMargins = panels.utilities.implicitWidth;

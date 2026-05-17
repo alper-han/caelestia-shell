@@ -24,6 +24,11 @@ Item {
     required property DashboardState dashState
     required property FileDialog facePicker
 
+    function clampCurrentTab(): void {
+        const count = dashboardTabs.length;
+        dashState.currentTab = count > 0 ? Math.max(0, Math.min(dashState.currentTab, count - 1)) : 0;
+    }
+
     readonly property var dashboardTabs: {
         const allTabs = [
             {
@@ -59,6 +64,9 @@ Item {
 
     implicitWidth: nonAnimWidth
     implicitHeight: nonAnimHeight
+
+    onDashboardTabsChanged: clampCurrentTab()
+    Component.onCompleted: clampCurrentTab()
 
     Tabs {
         id: tabs

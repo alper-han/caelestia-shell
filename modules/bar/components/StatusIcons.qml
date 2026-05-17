@@ -13,37 +13,54 @@ import qs.utils
 StyledRect {
     id: root
 
+    required property bool isVertical
+
     property color colour: Colours.palette.m3secondary
     readonly property alias items: iconColumn
 
     color: Colours.tPalette.m3surfaceContainer
     radius: Tokens.rounding.full
 
-    clip: true
-    implicitWidth: Tokens.sizes.bar.innerWidth
-    implicitHeight: iconColumn.implicitHeight + Tokens.padding.normal * 2 - (Config.bar.status.showLockStatus && !Hypr.capsLock && !Hypr.numLock ? iconColumn.spacing : 0)
+    readonly property bool hasLockStatus: Config.bar.status.showLockStatus && (Hypr.capsLock || Hypr.numLock)
+    readonly property int visibleItemCount: [
+        Config.bar.status.showLockStatus,
+        Config.bar.status.showAudio,
+        Config.bar.status.showMicrophone,
+        Config.bar.status.showKbLayout,
+        Config.bar.status.showNetwork && (!Nmcli.activeEthernet || Config.bar.status.showWifi),
+        Config.bar.status.showNetwork && Nmcli.activeEthernet,
+        Config.bar.status.showBluetooth,
+        Config.bar.status.showBattery
+    ].filter(v => v).length
+    readonly property int layoutItemCount: Math.max(1, visibleItemCount)
 
-    ColumnLayout {
+    clip: true
+    implicitWidth: isVertical ? Tokens.sizes.bar.innerWidth : iconColumn.implicitWidth + Tokens.padding.normal * 2 - (!hasLockStatus ? iconColumn.columnSpacing : 0)
+    implicitHeight: isVertical ? iconColumn.implicitHeight + Tokens.padding.normal * 2 - (!hasLockStatus ? iconColumn.rowSpacing : 0) : Tokens.sizes.bar.innerWidth
+
+    GridLayout {
         id: iconColumn
 
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.bottom: parent.bottom
-        anchors.bottomMargin: Tokens.padding.normal
+        anchors.centerIn: parent
 
-        spacing: Tokens.spacing.smaller / 2
+        rows: root.isVertical ? root.layoutItemCount : 1
+        columns: root.isVertical ? 1 : root.layoutItemCount
+        rowSpacing: root.isVertical ? Tokens.spacing.smaller / 2 : 0
+        columnSpacing: root.isVertical ? 0 : Tokens.spacing.smaller / 2
 
-        // Lock keys status
         WrappedLoader {
             name: "lockstatus"
             active: Config.bar.status.showLockStatus
 
-            sourceComponent: ColumnLayout {
-                spacing: 0
+            sourceComponent: GridLayout {
+                rows: root.isVertical ? 2 : 1
+                columns: root.isVertical ? 1 : 2
+                rowSpacing: 0
+                columnSpacing: 0
 
                 Item {
-                    implicitWidth: capslockIcon.implicitWidth
-                    implicitHeight: Hypr.capsLock ? capslockIcon.implicitHeight : 0
+                    implicitWidth: root.isVertical ? capslockIcon.implicitWidth : Hypr.capsLock ? capslockIcon.implicitWidth : 0
+                    implicitHeight: root.isVertical ? Hypr.capsLock ? capslockIcon.implicitHeight : 0 : Tokens.sizes.bar.innerWidth - Tokens.padding.small * 2
 
                     MaterialIcon {
                         id: capslockIcon
@@ -65,16 +82,21 @@ StyledRect {
                         }
                     }
 
+                    Behavior on implicitWidth {
+                        Anim {}
+                    }
+
                     Behavior on implicitHeight {
                         Anim {}
                     }
                 }
 
                 Item {
-                    Layout.topMargin: Hypr.capsLock && Hypr.numLock ? iconColumn.spacing : 0
+                    Layout.topMargin: root.isVertical && Hypr.capsLock && Hypr.numLock ? iconColumn.rowSpacing : 0
+                    Layout.leftMargin: !root.isVertical && Hypr.capsLock && Hypr.numLock ? iconColumn.columnSpacing : 0
 
-                    implicitWidth: numlockIcon.implicitWidth
-                    implicitHeight: Hypr.numLock ? numlockIcon.implicitHeight : 0
+                    implicitWidth: root.isVertical ? numlockIcon.implicitWidth : Hypr.numLock ? numlockIcon.implicitWidth : 0
+                    implicitHeight: root.isVertical ? Hypr.numLock ? numlockIcon.implicitHeight : 0 : Tokens.sizes.bar.innerWidth - Tokens.padding.small * 2
 
                     MaterialIcon {
                         id: numlockIcon
@@ -96,6 +118,10 @@ StyledRect {
                         }
                     }
 
+                    Behavior on implicitWidth {
+                        Anim {}
+                    }
+
                     Behavior on implicitHeight {
                         Anim {}
                     }
@@ -103,7 +129,6 @@ StyledRect {
             }
         }
 
-        // Audio icon
         WrappedLoader {
             name: "audio"
             active: Config.bar.status.showAudio
@@ -115,9 +140,8 @@ StyledRect {
             }
         }
 
-        // Microphone icon
         WrappedLoader {
-            name: "audio"
+            name: "microphone"
             active: Config.bar.status.showMicrophone
 
             sourceComponent: MaterialIcon {
@@ -127,7 +151,6 @@ StyledRect {
             }
         }
 
-        // Keyboard layout icon
         WrappedLoader {
             name: "kblayout"
             active: Config.bar.status.showKbLayout
@@ -140,7 +163,6 @@ StyledRect {
             }
         }
 
-        // Network icon
         WrappedLoader {
             name: "network"
             active: Config.bar.status.showNetwork && (!Nmcli.activeEthernet || Config.bar.status.showWifi)
@@ -152,7 +174,6 @@ StyledRect {
             }
         }
 
-        // Ethernet icon
         WrappedLoader {
             name: "ethernet"
             active: Config.bar.status.showNetwork && Nmcli.activeEthernet
@@ -164,17 +185,19 @@ StyledRect {
             }
         }
 
-        // Bluetooth section
         WrappedLoader {
-            Layout.preferredHeight: implicitHeight
+            Layout.preferredHeight: root.isVertical ? implicitHeight : -1
+            Layout.preferredWidth: root.isVertical ? -1 : implicitWidth
 
             name: "bluetooth"
             active: Config.bar.status.showBluetooth
 
-            sourceComponent: ColumnLayout {
-                spacing: Tokens.spacing.smaller / 2
+            sourceComponent: GridLayout {
+                rows: root.isVertical ? 1 + Bluetooth.devices.values.filter(d => d.state !== BluetoothDeviceState.Disconnected).length : 1
+                columns: root.isVertical ? 1 : 1 + Bluetooth.devices.values.filter(d => d.state !== BluetoothDeviceState.Disconnected).length
+                rowSpacing: root.isVertical ? Tokens.spacing.smaller / 2 : 0
+                columnSpacing: root.isVertical ? 0 : Tokens.spacing.smaller / 2
 
-                // Bluetooth icon
                 MaterialIcon {
                     animate: true
                     text: {
@@ -187,7 +210,6 @@ StyledRect {
                     color: root.colour
                 }
 
-                // Connected bluetooth devices
                 Repeater {
                     model: ScriptModel {
                         values: Bluetooth.devices.values.filter(d => d.state !== BluetoothDeviceState.Disconnected) // qmllint disable unresolved-type
@@ -228,9 +250,12 @@ StyledRect {
             Behavior on Layout.preferredHeight {
                 Anim {}
             }
+
+            Behavior on Layout.preferredWidth {
+                Anim {}
+            }
         }
 
-        // Battery icon
         WrappedLoader {
             name: "battery"
             active: Config.bar.status.showBattery
@@ -265,7 +290,7 @@ StyledRect {
         required property string name
 
         asynchronous: true
-        Layout.alignment: Qt.AlignHCenter
+        Layout.alignment: Qt.AlignCenter
         visible: active
     }
 }

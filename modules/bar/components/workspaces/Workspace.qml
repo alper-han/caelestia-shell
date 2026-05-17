@@ -8,32 +8,37 @@ import qs.components
 import qs.services
 import qs.utils
 
-ColumnLayout {
+GridLayout {
     id: root
 
     required property int index
     required property int activeWsId
     required property var occupied
     required property int groupOffset
+    required property bool isVertical
 
-    readonly property bool isWorkspace: true // Flag for finding workspace children
-    // Unanimated prop for others to use as reference
-    readonly property int size: implicitHeight + (hasWindows ? Tokens.padding.small : 0)
+    readonly property bool isWorkspace: true
+    readonly property int size: isVertical ? implicitHeight + (hasWindows ? Tokens.padding.small : 0) : implicitWidth + (hasWindows ? Tokens.padding.small : 0)
 
     readonly property int ws: groupOffset + index + 1
     readonly property bool isOccupied: occupied[ws] ?? false
     readonly property bool hasWindows: isOccupied && Config.bar.workspaces.showWindows
 
-    Layout.alignment: Qt.AlignHCenter
-    Layout.preferredHeight: size
+    Layout.alignment: Qt.AlignCenter
+    Layout.preferredHeight: isVertical ? size : Tokens.sizes.bar.innerWidth - Tokens.padding.small * 2
+    Layout.preferredWidth: isVertical ? Tokens.sizes.bar.innerWidth - Tokens.padding.small * 2 : size
 
-    spacing: 0
+    columns: isVertical ? 1 : 2
+    rows: isVertical ? 2 : 1
+    rowSpacing: 0
+    columnSpacing: 0
 
     StyledText {
         id: indicator
 
-        Layout.alignment: Qt.AlignHCenter | Qt.AlignTop
+        Layout.alignment: Qt.AlignCenter
         Layout.preferredHeight: Tokens.sizes.bar.innerWidth - Tokens.padding.small * 2
+        Layout.preferredWidth: Tokens.sizes.bar.innerWidth - Tokens.padding.small * 2
 
         animate: true
         text: {
@@ -52,6 +57,7 @@ ColumnLayout {
         }
         color: Config.bar.workspaces.occupiedBg || root.isOccupied || root.activeWsId === root.ws ? Colours.palette.m3onSurface : Colours.layer(Colours.palette.m3outlineVariant, 2)
         verticalAlignment: Qt.AlignVCenter
+        horizontalAlignment: Qt.AlignHCenter
     }
 
     Loader {
@@ -59,14 +65,18 @@ ColumnLayout {
 
         asynchronous: true
 
-        Layout.alignment: Qt.AlignHCenter
-        Layout.fillHeight: true
-        Layout.topMargin: -Tokens.sizes.bar.innerWidth / 10
+        Layout.alignment: Qt.AlignCenter
+        Layout.fillHeight: root.isVertical
+        Layout.fillWidth: !root.isVertical
+        Layout.topMargin: root.isVertical ? -Tokens.sizes.bar.innerWidth / 10 : 0
+        Layout.leftMargin: root.isVertical ? 0 : -Tokens.sizes.bar.innerWidth / 10
 
         visible: active
         active: root.hasWindows
 
-        sourceComponent: Column {
+        sourceComponent: Grid {
+            columns: root.isVertical ? 1 : children.length
+            rows: root.isVertical ? children.length : 1
             spacing: 0
 
             add: Transition {
@@ -111,6 +121,10 @@ ColumnLayout {
     }
 
     Behavior on Layout.preferredHeight {
+        Anim {}
+    }
+
+    Behavior on Layout.preferredWidth {
         Anim {}
     }
 }

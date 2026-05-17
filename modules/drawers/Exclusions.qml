@@ -5,6 +5,7 @@ import Quickshell
 import Caelestia.Config
 import qs.components.containers
 import qs.modules.bar as Bar
+import qs.utils
 
 Scope {
     id: root
@@ -14,19 +15,22 @@ Scope {
 
     ExclusionZone {
         anchors.left: true
-        exclusiveZone: root.bar.exclusiveZone
+        exclusiveZone: BarPosition.isLeft(root.bar.position) ? root.bar.exclusiveZone : contentItem.Config.border.thickness
     }
 
     ExclusionZone {
         anchors.top: true
+        exclusiveZone: BarPosition.isTop(root.bar.position) ? root.bar.exclusiveZone : contentItem.Config.border.thickness
     }
 
     ExclusionZone {
         anchors.right: true
+        exclusiveZone: BarPosition.isRight(root.bar.position) ? root.bar.exclusiveZone : contentItem.Config.border.thickness
     }
 
     ExclusionZone {
         anchors.bottom: true
+        exclusiveZone: BarPosition.isBottom(root.bar.position) ? root.bar.exclusiveZone : contentItem.Config.border.thickness
     }
 
     component ExclusionZone: StyledWindow {

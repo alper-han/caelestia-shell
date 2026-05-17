@@ -24,10 +24,16 @@ Item {
     readonly property real nonAnimHeight: children.find(c => c.shouldBeActive)?.implicitHeight ?? content.implicitHeight
     readonly property Item current: (content.item as Content)?.current ?? null
     readonly property bool isDetached: detachedMode.length > 0
+    readonly property bool animateSize: hasCurrent || isDetached
 
     property alias currentName: popoutState.currentName
     property alias hasCurrent: popoutState.hasCurrent
     property real currentCenter
+
+    onHasCurrentChanged: {
+        if (!hasCurrent && !isDetached)
+            currentName = "";
+    }
 
     property string detachedMode
     property string queuedMode
@@ -46,6 +52,8 @@ Item {
 
     function detach(mode: string): void {
         setAnims(true);
+        hasCurrent = false;
+        currentName = "";
         if (mode === "winfo") {
             detachedMode = mode;
         } else {
@@ -57,12 +65,17 @@ Item {
     }
 
     function close(): void {
-        hasCurrent = false;
         detachedMode = "";
+        queuedMode = "";
+        hasCurrent = false;
+        currentName = "";
+        currentCenter = 0;
     }
 
     implicitWidth: nonAnimWidth
     implicitHeight: nonAnimHeight
+    width: implicitWidth
+    height: implicitHeight
 
     focus: hasCurrent
     Keys.onEscapePressed: {
@@ -141,6 +154,8 @@ Item {
     }
 
     Behavior on implicitWidth {
+        enabled: root.animateSize
+
         Anim {
             duration: root.animLength
             easing: root.animCurve
@@ -148,7 +163,7 @@ Item {
     }
 
     Behavior on implicitHeight {
-        enabled: root.offsetScale < 1
+        enabled: root.offsetScale < 1 && root.animateSize
 
         Anim {
             duration: root.animLength

@@ -11,6 +11,7 @@ import Caelestia.Config
 import qs.components
 import qs.components.containers
 import qs.services
+import qs.utils
 import qs.modules.bar
 
 StyledWindow {
@@ -38,12 +39,26 @@ StyledWindow {
     readonly property real borderRounding: contentItem.Config.border.rounding * (1 - fsTransitionProg)
     readonly property real shadowOpacity: 0.7 * (1 - fsTransitionProg)
     readonly property real borderLayoutThickness: hasFullscreen ? 0 : contentItem.Config.border.thickness
+    readonly property real visibleBarWidth: bar.shouldBeVisible ? bar.contentWidth : root.borderThickness
+    readonly property real visibleBarHeight: bar.shouldBeVisible ? bar.contentHeight : root.borderThickness
+    readonly property real leftContentInset: BarPosition.isLeft(bar.position) ? visibleBarWidth : root.borderThickness
+    readonly property real rightContentInset: BarPosition.isRight(bar.position) ? visibleBarWidth : root.borderThickness
+    readonly property real topContentInset: BarPosition.isTop(bar.position) ? visibleBarHeight : root.borderThickness
+    readonly property real bottomContentInset: BarPosition.isBottom(bar.position) ? visibleBarHeight : root.borderThickness
+
+    function panelWindowX(panel: Item, localX: real): real {
+        return root.leftContentInset + panel.x + localX;
+    }
+
+    function panelWindowY(panel: Item, localY: real): real {
+        return root.topContentInset + panel.y + localY;
+    }
 
     readonly property int dragMaskPadding: {
         if (focusGrab.active || panels.popouts.isDetached)
             return 0;
 
-        if (monitor?.lastIpcObject.specialWorkspace?.name || monitor?.activeWorkspace.lastIpcObject.windows > 0)
+        if (monitor?.lastIpcObject.specialWorkspace?.name || (monitor?.activeWorkspace?.lastIpcObject.windows ?? 0) > 0)
             return 0;
 
         const thresholds = [];
@@ -59,6 +74,50 @@ StyledWindow {
         visibilities.dashboard = false;
         panels.popouts.close();
     }
+
+    readonly property bool barShowOnHover: contentItem.Config.bar.showOnHover
+    readonly property bool launcherEnabled: contentItem.Config.launcher.enabled
+    readonly property bool launcherShowOnHover: contentItem.Config.launcher.showOnHover
+    readonly property bool dashboardEnabled: contentItem.Config.dashboard.enabled
+    readonly property bool dashboardShowOnHover: contentItem.Config.dashboard.showOnHover
+
+    function resetBarState(): void {
+        bar.isHovered = false;
+        panels.popouts.close();
+        bar.closeTray();
+    }
+
+    function resetLauncherState(): void {
+        visibilities.launcher = false;
+        panels.popouts.close();
+        bar.closeTray();
+    }
+
+    function resetDashboardState(): void {
+        visibilities.dashboard = false;
+        interactions.dashboardShortcutActive = false;
+        panels.popouts.close();
+        bar.closeTray();
+    }
+
+    onBarShowOnHoverChanged: {
+        if (!barShowOnHover)
+            resetBarState();
+    }
+
+    onLauncherEnabledChanged: {
+        if (!launcherEnabled)
+            resetLauncherState();
+    }
+
+    onLauncherShowOnHoverChanged: resetLauncherState()
+
+    onDashboardEnabledChanged: {
+        if (!dashboardEnabled)
+            resetDashboardState();
+    }
+
+    onDashboardShowOnHoverChanged: resetDashboardState()
 
     name: "drawers"
     WlrLayershell.exclusionMode: ExclusionMode.Ignore
@@ -79,14 +138,14 @@ StyledWindow {
     Region {
         id: emptyRegion
 
-        x: panels.notifications.x + bar.implicitWidth
-        y: panels.notifications.y + root.borderThickness
+        x: root.panelWindowX(panels.notifications, 0)
+        y: root.panelWindowY(panels.notifications, 0)
         width: panels.notifications.width
         height: panels.notifications.height
 
         Region {
-            x: root.width - width
-            y: panels.osdWrapper.y + root.borderThickness
+            x: root.panelWindowX(panels.osdWrapper, panels.osd.x)
+            y: root.panelWindowY(panels.osdWrapper, panels.osd.y)
             width: panels.osdWrapper.width * (1 - panels.osd.offsetScale) + root.borderThickness
             height: panels.osd.height
         }
@@ -151,17 +210,21 @@ StyledWindow {
             anchors.margins: -50 // Make border thicker to smooth out bulge from closed drawers
             group: blobGroup
             radius: root.borderRounding
-            borderLeft: bar.implicitWidth - anchors.margins - root.sdfBorderOffset
-            borderRight: root.borderThickness - anchors.margins - root.sdfBorderOffset
-            borderTop: root.borderThickness - anchors.margins - root.sdfBorderOffset
-            borderBottom: root.borderThickness - anchors.margins - root.sdfBorderOffset
+            borderLeft: root.leftContentInset - anchors.margins - root.sdfBorderOffset
+            borderRight: root.rightContentInset - anchors.margins - root.sdfBorderOffset
+            borderTop: root.topContentInset - anchors.margins - root.sdfBorderOffset
+            borderBottom: root.bottomContentInset - anchors.margins - root.sdfBorderOffset
         }
 
         PanelBg {
             id: dashBg
 
+            readonly property bool activeSurface: panels.dashboard.offsetScale < 1
+
+            group: activeSurface ? blobGroup : null
             panel: panels.dashboard
             deformAmount: 0.1
+            implicitHeight: activeSurface ? panel.height : 0
         }
 
         PanelBg {
@@ -176,7 +239,7 @@ StyledWindow {
 
             panel: panels.sessionWrapper
             deformAmount: 0.2
-            x: panels.sessionWrapper.x + panels.session.x + bar.implicitWidth
+            x: root.panelWindowX(panels.sessionWrapper, panels.session.x)
             implicitWidth: panels.session.width
         }
 
@@ -195,7 +258,7 @@ StyledWindow {
 
             panel: panels.osdWrapper
             deformAmount: 0.25
-            x: panels.osdWrapper.x + panels.osd.x + bar.implicitWidth
+            x: root.panelWindowX(panels.osdWrapper, panels.osd.x)
             implicitWidth: panels.osd.width
         }
 
@@ -217,15 +280,34 @@ StyledWindow {
         PanelBg {
             id: popoutBg
 
-            // Extra width to prevent vertical movement deformation partially detaching panel from bar
-            property real extraWidth: panels.popouts.isDetached ? 0 : 0.2
+            // Extra size to prevent movement deformation partially detaching panel from bar
+            readonly property bool activePopoutSurface: panels.popouts.hasCurrent || panels.popouts.isDetached
+            readonly property real popoutWidth: activePopoutSurface ? panels.popouts.nonAnimWidth : 0
+            readonly property real popoutHeight: activePopoutSurface ? panels.popouts.nonAnimHeight : 0
+            readonly property bool rightAttached: !panels.popouts.isDetached && BarPosition.isRight(bar.position)
+            readonly property bool bottomAttached: !panels.popouts.isDetached && BarPosition.isBottom(bar.position)
+            readonly property real surfaceWidth: popoutWidth
+            readonly property real surfaceHeight: popoutHeight
+            property bool popoutVertical: BarPosition.isVertical(bar.position)
+            property real extraWidth: panels.popouts.isDetached || !popoutVertical ? 0 : 0.2
+            property real extraHeight: panels.popouts.isDetached || popoutVertical ? 0 : 0.08
+            property real extraX: BarPosition.isLeft(bar.position) ? popoutWidth * extraWidth : rightAttached ? surfaceWidth * extraWidth : 0
+            property real extraY: BarPosition.isTop(bar.position) ? popoutHeight * extraHeight : bottomAttached ? surfaceHeight * extraHeight : 0
 
             panel: panels.popoutsWrapper
             deformAmount: panels.popouts.isDetached ? 0.05 : panels.popouts.hasCurrent ? 0.15 : 0.1
-            x: panels.popoutsWrapper.x + panels.popouts.x + bar.implicitWidth - panels.popouts.width * extraWidth
-            implicitWidth: panels.popouts.width * (1 + extraWidth)
+            x: root.panelWindowX(panels.popoutsWrapper, 0) - extraX
+            y: root.panelWindowY(panels.popoutsWrapper, 0) - extraY
+            implicitWidth: surfaceWidth + extraX
+            implicitHeight: surfaceHeight + extraY
 
             Behavior on extraWidth {
+                Anim {
+                    type: Anim.DefaultSpatial
+                }
+            }
+
+            Behavior on extraHeight {
                 Anim {
                     type: Anim.DefaultSpatial
                 }
@@ -290,9 +372,6 @@ StyledWindow {
         BarWrapper {
             id: bar
 
-            anchors.top: parent.top
-            anchors.bottom: parent.bottom
-
             screen: root.screen
             visibilities: visibilities
             popouts: panels.popouts
@@ -308,8 +387,8 @@ StyledWindow {
         property real deformAmount: 0.15
 
         group: blobGroup
-        x: panel.x + bar.implicitWidth
-        y: panel.y + root.borderThickness
+        x: root.panelWindowX(panel, 0)
+        y: root.panelWindowY(panel, 0)
         implicitWidth: panel.width
         implicitHeight: panel.height
         radius: Tokens.rounding.large

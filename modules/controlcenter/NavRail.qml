@@ -60,11 +60,13 @@ Item {
                     id: normalWinState
 
                     onClicked: {
+                        const active = root.session.active;
+                        const navExpanded = root.session.navExpanded;
                         root.session.root.close();
-                        WindowFactory.create(null, {
-                            active: root.session.active,
-                            navExpanded: root.session.navExpanded
-                        });
+                        Qt.callLater(() => WindowFactory.create(null, {
+                            active: active,
+                            navExpanded: navExpanded
+                        }));
                     }
 
                     color: Colours.palette.m3onPrimaryContainer

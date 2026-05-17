@@ -27,8 +27,12 @@ Item {
 
     signal close
 
-    implicitWidth: implicitHeight * Tokens.sizes.controlCenter.ratio
-    implicitHeight: screen.height * Tokens.sizes.controlCenter.heightMult
+    readonly property real maxWindowWidth: Math.max(0, screen.width - Tokens.padding.large * 2)
+    readonly property real maxWindowHeight: Math.max(0, screen.height - Tokens.padding.large * 2)
+    readonly property real targetHeight: Math.min(screen.height * Tokens.sizes.controlCenter.heightMult, maxWindowHeight, maxWindowWidth / Tokens.sizes.controlCenter.ratio)
+
+    implicitWidth: targetHeight * Tokens.sizes.controlCenter.ratio
+    implicitHeight: targetHeight
 
     GridLayout {
         anchors.fill: parent

@@ -12,6 +12,7 @@ Item {
     required property Repeater workspaces
     required property var occupied
     required property int groupOffset
+    required property bool isVertical
 
     property list<var> pills: []
 
@@ -62,11 +63,13 @@ Item {
                 return i % Config.bar.workspaces.shown;
             }
 
-            anchors.horizontalCenter: root.horizontalCenter
+            anchors.horizontalCenter: root.isVertical ? root.horizontalCenter : undefined
+            anchors.verticalCenter: root.isVertical ? undefined : root.verticalCenter
 
-            y: (start?.y ?? 0) - 1
-            implicitWidth: Tokens.sizes.bar.innerWidth - Tokens.padding.small * 2 + 2
-            implicitHeight: start && end ? end.y + end.size - start.y + 2 : 0
+            x: root.isVertical ? 0 : (start?.x ?? 0) - 1
+            y: root.isVertical ? (start?.y ?? 0) - 1 : 0
+            implicitWidth: root.isVertical ? Tokens.sizes.bar.innerWidth - Tokens.padding.small * 2 + 2 : start && end ? end.x + end.size - start.x + 2 : 0
+            implicitHeight: root.isVertical ? start && end ? end.y + end.size - start.y + 2 : 0 : Tokens.sizes.bar.innerWidth - Tokens.padding.small * 2 + 2
 
             color: Colours.layer(Colours.palette.m3surfaceContainerHigh, 2)
             radius: Tokens.rounding.full
@@ -80,7 +83,15 @@ Item {
                 }
             }
 
+            Behavior on x {
+                Anim {}
+            }
+
             Behavior on y {
+                Anim {}
+            }
+
+            Behavior on implicitWidth {
                 Anim {}
             }
 

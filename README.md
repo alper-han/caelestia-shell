@@ -257,6 +257,7 @@ For example, to disable the bar on DP-1:
 > **not** recommended to copy and paste this entire configuration into `shell.json`.
 > This is meant to serve as a reference of all the available options, and you should
 > only add the ones you want to change to `shell.json`.
+> `bar.position` defaults to `left`. Set it to `left`, `right`, `top`, or `bottom`; left/right bars are vertical and top/bottom bars are horizontal.
 
 <details><summary>Example</summary>
 
@@ -389,6 +390,7 @@ For example, to disable the bar on DP-1:
             "showIcon": true
         },
         "dragThreshold": 20,
+        "position": "left",
         "entries": [
             {
                 "id": "logo",

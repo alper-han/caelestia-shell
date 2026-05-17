@@ -13,6 +13,7 @@ StyledClippingRect {
 
     required property ShellScreen screen
     required property bool fullscreen
+    required property bool isVertical
 
     readonly property bool onSpecial: (GlobalConfig.bar.workspaces.perMonitorWorkspaces ? Hypr.monitorFor(screen) : Hypr.focusedMonitor)?.lastIpcObject.specialWorkspace?.name !== ""
     readonly property int activeWsId: GlobalConfig.bar.workspaces.perMonitorWorkspaces ? (Hypr.monitorFor(screen).activeWorkspace?.id ?? 1) : Hypr.activeWsId
@@ -27,8 +28,8 @@ StyledClippingRect {
 
     property real blur: onSpecial ? 1 : 0
 
-    implicitWidth: Tokens.sizes.bar.innerWidth
-    implicitHeight: layout.implicitHeight + Tokens.padding.small * 2
+    implicitWidth: isVertical ? Tokens.sizes.bar.innerWidth : layout.implicitWidth + Tokens.padding.small * 2
+    implicitHeight: isVertical ? layout.implicitHeight + Tokens.padding.small * 2 : Tokens.sizes.bar.innerWidth
 
     color: Colours.tPalette.m3surfaceContainer
     radius: Tokens.rounding.full
@@ -57,14 +58,18 @@ StyledClippingRect {
                 workspaces: workspaces
                 occupied: root.occupied
                 groupOffset: root.groupOffset
+                isVertical: root.isVertical
             }
         }
 
-        ColumnLayout {
+        GridLayout {
             id: layout
 
             anchors.centerIn: parent
-            spacing: Math.floor(Tokens.spacing.small / 2)
+            columns: root.isVertical ? 1 : Config.bar.workspaces.shown
+            rows: root.isVertical ? Config.bar.workspaces.shown : 1
+            rowSpacing: root.isVertical ? Math.floor(Tokens.spacing.small / 2) : 0
+            columnSpacing: root.isVertical ? 0 : Math.floor(Tokens.spacing.small / 2)
 
             Repeater {
                 id: workspaces
@@ -75,13 +80,15 @@ StyledClippingRect {
                     activeWsId: root.activeWsId
                     occupied: root.occupied
                     groupOffset: root.groupOffset
+                    isVertical: root.isVertical
                 }
             }
         }
 
         Loader {
             asynchronous: true
-            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.horizontalCenter: root.isVertical ? parent.horizontalCenter : undefined
+            anchors.verticalCenter: root.isVertical ? undefined : parent.verticalCenter
             active: Config.bar.workspaces.activeIndicator
 
             sourceComponent: ActiveIndicator {
@@ -89,6 +96,7 @@ StyledClippingRect {
                 workspaces: workspaces
                 mask: layout
                 fullscreen: root.fullscreen
+                isVertical: root.isVertical
             }
         }
 
@@ -127,6 +135,7 @@ StyledClippingRect {
 
         sourceComponent: SpecialWorkspaces {
             screen: root.screen
+            isVertical: root.isVertical
         }
 
         Behavior on scale {

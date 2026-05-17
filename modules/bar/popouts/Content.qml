@@ -20,8 +20,11 @@ Item {
     Item {
         id: content
 
-        anchors.fill: parent
-        anchors.margins: Tokens.padding.large
+        anchors.centerIn: parent
+        implicitWidth: root.currentPopout?.implicitWidth ?? 0
+        implicitHeight: root.currentPopout?.implicitHeight ?? 0
+        width: implicitWidth
+        height: implicitHeight
 
         Popout {
             name: "activewindow"
@@ -117,6 +120,13 @@ Item {
         }
 
         Popout {
+            name: "microphone"
+            sourceComponent: Audio {
+                popouts: root.popouts
+            }
+        }
+
+        Popout {
             name: "kblayout"
             sourceComponent: KbLayout {}
         }
@@ -167,7 +177,7 @@ Item {
         id: popout
 
         required property string name
-        readonly property bool shouldBeActive: root.popouts.currentName === name
+        readonly property bool shouldBeActive: root.popouts.hasCurrent && root.popouts.currentName === name
 
         anchors.centerIn: parent
 

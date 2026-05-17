@@ -6,6 +6,7 @@ import qs.components
 import qs.components.controls
 import qs.modules.bar as Bar
 import qs.modules.bar.popouts as BarPopouts
+import qs.utils
 
 CustomMouseArea {
     id: root
@@ -23,40 +24,161 @@ CustomMouseArea {
     property bool osdShortcutActive
     property bool utilitiesShortcutActive
 
+    readonly property real barThickness: bar.contentThickness
+    readonly property real barVisualThickness: bar.isVertical ? bar.implicitWidth : bar.implicitHeight
+    readonly property real visibleBarWidth: bar.shouldBeVisible ? bar.contentWidth : borderThickness
+    readonly property real visibleBarHeight: bar.shouldBeVisible ? bar.contentHeight : borderThickness
+    readonly property real leftContentInset: BarPosition.isLeft(bar.position) ? visibleBarWidth : borderThickness
+    readonly property real rightContentInset: BarPosition.isRight(bar.position) ? visibleBarWidth : borderThickness
+    readonly property real topContentInset: BarPosition.isTop(bar.position) ? visibleBarHeight : borderThickness
+    readonly property real bottomContentInset: BarPosition.isBottom(bar.position) ? visibleBarHeight : borderThickness
+
+    function panelWindowX(panel: Item, localX: real): real {
+        return leftContentInset + panel.x + localX;
+    }
+
+    function panelWindowY(panel: Item, localY: real): real {
+        return topContentInset + panel.y + localY;
+    }
+
+    function barMainCoord(x: real, y: real): real {
+        return BarPosition.mainCoord(bar.position, x, y);
+    }
+
+    function isInBarEdge(x: real, y: real, thickness: real): bool {
+        return BarPosition.isInEdgeArea(bar.position, x, y, width, height, thickness);
+    }
+
+    function barDragDelta(dragX: real, dragY: real): real {
+        return bar.isVertical ? dragX : dragY;
+    }
+
+    function showDragDelta(dragX: real, dragY: real): real {
+        const delta = barDragDelta(dragX, dragY);
+        return BarPosition.isLeft(bar.position) || BarPosition.isTop(bar.position) ? delta : -delta;
+    }
+
     function withinPanelHeight(panel: Item, x: real, y: real): bool {
-        const panelY = root.borderThickness + panel.y;
+        const panelY = panelWindowY(panel, 0);
         return y >= panelY - Config.border.rounding && y <= panelY + panel.height + Config.border.rounding;
     }
 
     function withinPanelWidth(panel: Item, x: real, y: real): bool {
-        const panelX = bar.implicitWidth + panel.x;
+        const panelX = panelWindowX(panel, 0);
         return x >= panelX - Config.border.rounding && x <= panelX + panel.width + Config.border.rounding;
     }
 
     function inLeftPanel(panel: Item, x: real, y: real): bool {
-        return x < bar.implicitWidth + panel.x + panel.width && withinPanelHeight(panel, x, y);
+        return x < panelWindowX(panel, panel.width) && withinPanelHeight(panel, x, y);
+    }
+
+    function inPanelRect(panel: Item, x: real, y: real): bool {
+        const panelX = panelWindowX(panel, 0);
+        const panelY = panelWindowY(panel, 0);
+        return x >= panelX - Config.border.rounding && x <= panelX + panel.width + Config.border.rounding && y >= panelY - Config.border.rounding && y <= panelY + panel.height + Config.border.rounding;
+    }
+
+    function inExpandedPopoutRect(x: real, y: real): bool {
+        const panel = panels.popoutsWrapper;
+        const detached = popouts.isDetached;
+        const active = popouts.hasCurrent || detached;
+
+        if (!active)
+            return false;
+
+        let panelX = panelWindowX(panel, 0);
+        let panelY = panelWindowY(panel, 0);
+        let panelWidth = panel.width;
+        let panelHeight = panel.height;
+
+        if (!detached && BarPosition.isVertical(bar.position)) {
+            const extraWidth = panelWidth * 0.2;
+            panelWidth += extraWidth;
+            if (BarPosition.isLeft(bar.position))
+                panelX -= extraWidth;
+        } else if (!detached && BarPosition.isHorizontal(bar.position)) {
+            const extraHeight = panelHeight * 0.08;
+            panelHeight += extraHeight;
+            if (BarPosition.isHorizontal(bar.position))
+                panelY -= extraHeight;
+        }
+
+        return x >= panelX - Config.border.rounding && x <= panelX + panelWidth + Config.border.rounding && y >= panelY - Config.border.rounding && y <= panelY + panelHeight + Config.border.rounding;
     }
 
     function inRightPanel(panel: Item, x: real, y: real): bool {
-        return x > Math.min(width - Config.border.minThickness, bar.implicitWidth + panel.x) && withinPanelHeight(panel, x, y);
+        return x > Math.min(width - Config.border.minThickness, panelWindowX(panel, 0)) && withinPanelHeight(panel, x, y);
     }
 
     function inTopPanel(panel: Item, x: real, y: real): bool {
         const panelHeight = panel.height * (1 - (panel.offsetScale ?? 0)); // qmllint disable missing-property
-        return y < Math.max(Config.border.minThickness, Config.border.thickness + panelHeight) && withinPanelWidth(panel, x, y);
+        const panelBottom = panelWindowY(panel, 0) + Math.max(Config.border.minThickness, panelHeight);
+        return y < Math.max(topContentInset + Config.border.minThickness, panelBottom) && withinPanelWidth(panel, x, y);
     }
 
     function inBottomPanel(panel: Item, x: real, y: real, isCorner = false): bool {
         const panelHeight = panel.height * (1 - (panel.offsetScale ?? 0)); // qmllint disable missing-property
-        return y > height - Math.max(Config.border.minThickness, Config.border.thickness + panelHeight) - (isCorner ? Config.border.rounding : 0) && withinPanelWidth(panel, x, y);
+        return y > height - bottomContentInset - Math.max(Config.border.minThickness, panelHeight) - (isCorner ? Config.border.rounding : 0) && withinPanelWidth(panel, x, y);
     }
 
     function onWheel(event: WheelEvent): void {
         if (fullscreen)
             return;
-        if (event.x < bar.implicitWidth) {
-            bar.handleWheel(event.y, event.angleDelta);
+        if (isInBarEdge(event.x, event.y, barVisualThickness)) {
+            bar.handleWheel(event.x, event.y, event.angleDelta);
         }
+    }
+
+    function canAutoClosePopout(): bool {
+        return !popouts.isDetached && (!popouts.currentName.startsWith("traymenu") || ((popouts.current as StackView)?.depth ?? 0) <= 1);
+    }
+
+    function requestPopoutClose(): void {
+        if (canAutoClosePopout() && !popoutCloseTimer.running)
+            popoutCloseTimer.start();
+    }
+
+    function cancelPopoutClose(): void {
+        popoutCloseTimer.stop();
+    }
+
+    function closePopoutsIfStillOutside(): void {
+        if (!canAutoClosePopout())
+            return;
+
+        if (containsMouse) {
+            if (isInBarEdge(mouseX, mouseY, barVisualThickness)) {
+                if (bar.checkPopout(mouseX, mouseY))
+                    return;
+            } else if (inExpandedPopoutRect(mouseX, mouseY)) {
+                return;
+            }
+        }
+
+        popouts.hasCurrent = false;
+        bar.closeTray();
+    }
+
+    Timer {
+        id: popoutCloseTimer
+
+        interval: 180
+        repeat: false
+        onTriggered: root.closePopoutsIfStillOutside()
+    }
+
+    Connections {
+        function onPositionChanged(): void {
+            popoutCloseTimer.stop();
+            dashboardShortcutActive = false;
+            osdShortcutActive = false;
+            utilitiesShortcutActive = false;
+            popouts.close();
+            bar.closeTray();
+            bar.isHovered = false;
+        }
+
+        target: root.bar
     }
 
     anchors.fill: parent
@@ -78,10 +200,7 @@ CustomMouseArea {
             if (!utilitiesShortcutActive)
                 visibilities.utilities = false;
 
-            if (!popouts.currentName.startsWith("traymenu") || ((popouts.current as StackView)?.depth ?? 0) <= 1) {
-                popouts.hasCurrent = false;
-                bar.closeTray();
-            }
+            requestPopoutClose();
 
             if (Config.bar.showOnHover)
                 bar.isHovered = false;
@@ -103,14 +222,15 @@ CustomMouseArea {
         }
 
         // Show bar in non-exclusive mode on hover
-        if (!visibilities.bar && Config.bar.showOnHover && x < bar.clampedWidth)
+        if (!visibilities.bar && Config.bar.showOnHover && isInBarEdge(x, y, barThickness))
             bar.isHovered = true;
 
         // Show/hide bar on drag
-        if (pressed && dragStart.x < bar.clampedWidth) {
-            if (dragX > Config.bar.dragThreshold)
+        if (pressed && isInBarEdge(dragStart.x, dragStart.y, barThickness)) {
+            const barDrag = showDragDelta(dragX, dragY);
+            if (barDrag > Config.bar.dragThreshold)
                 visibilities.bar = true;
-            else if (dragX < -Config.bar.dragThreshold)
+            else if (barDrag < -Config.bar.dragThreshold)
                 visibilities.bar = false;
         }
 
@@ -128,7 +248,7 @@ CustomMouseArea {
                 root.panels.osd.hovered = true;
             }
 
-            const showSidebar = pressed && dragStart.x > Math.min(width - Config.border.minThickness, bar.implicitWidth + panels.sidebar.x);
+            const showSidebar = pressed && dragStart.x > Math.min(width - Config.border.minThickness, panelWindowX(panels.sidebar, 0));
 
             // Show/hide session on drag
             if (pressed && inRightPanel(panels.sessionWrapper, dragStart.x, dragStart.y) && withinPanelHeight(panels.sessionWrapper, x, y)) {
@@ -145,7 +265,7 @@ CustomMouseArea {
                 visibilities.sidebar = true;
             }
         } else {
-            const outOfSidebar = x < width - panels.sidebar.width * (1 - panels.sidebar.offsetScale);
+            const outOfSidebar = x < panelWindowX(panels.sidebar, 0);
             // Show osd on hover
             const showOsd = outOfSidebar && inRightPanel(panels.osdWrapper, x, y);
 
@@ -168,7 +288,7 @@ CustomMouseArea {
             }
 
             // Hide sidebar on drag
-            if (pressed && inRightPanel(panels.sidebar, dragStart.x, 0) && dragX > Config.sidebar.dragThreshold)
+            if (pressed && inRightPanel(panels.sidebar, dragStart.x, dragStart.y) && dragX > Config.sidebar.dragThreshold)
                 visibilities.sidebar = false;
         }
 
@@ -214,11 +334,15 @@ CustomMouseArea {
         }
 
         // Show popouts on hover
-        if (x < bar.implicitWidth) {
-            bar.checkPopout(y);
-        } else if ((!popouts.currentName.startsWith("traymenu") || ((popouts.current as StackView)?.depth ?? 0) <= 1) && !inLeftPanel(panels.popoutsWrapper, x, y)) {
-            popouts.hasCurrent = false;
-            bar.closeTray();
+        if (isInBarEdge(x, y, barVisualThickness)) {
+            if (bar.checkPopout(x, y))
+                cancelPopoutClose();
+            else
+                requestPopoutClose();
+        } else if (inExpandedPopoutRect(x, y)) {
+            cancelPopoutClose();
+        } else {
+            requestPopoutClose();
         }
     }
 

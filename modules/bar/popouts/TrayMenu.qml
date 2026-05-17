@@ -44,6 +44,14 @@ StackView {
         required property QsMenuHandle handle
         property bool isSubMenu
         property bool shown
+        readonly property real maxItemWidth: Tokens.sizes.bar.trayMenuWidth
+        readonly property real itemWidth: Math.min(maxItemWidth, implicitContentWidth)
+        readonly property real implicitContentWidth: {
+            let width = 0;
+            for (let i = 0; i < menuItems.count; i++)
+                width = Math.max(width, menuItems.itemAt(i)?.naturalWidth ?? 0);
+            return width;
+        }
 
         padding: Tokens.padding.smaller
         spacing: Tokens.spacing.small
@@ -71,18 +79,28 @@ StackView {
         }
 
         Repeater {
+            id: menuItems
+
             model: menuOpener.children
 
             StyledRect {
                 id: item
 
                 required property QsMenuEntry modelData
+                readonly property real naturalWidth: modelData.isSeparator ? 0 : naturalLabel.implicitWidth + (modelData.icon !== "" ? naturalLabel.implicitHeight + Tokens.spacing.smaller : 0) + (modelData.hasChildren ? naturalLabel.implicitHeight + Tokens.spacing.normal : 0)
 
-                implicitWidth: Tokens.sizes.bar.trayMenuWidth
+                implicitWidth: menu.itemWidth
                 implicitHeight: modelData.isSeparator ? 1 : children.implicitHeight
 
                 radius: Tokens.rounding.full
                 color: modelData.isSeparator ? Colours.palette.m3outlineVariant : "transparent"
+
+                StyledText {
+                    id: naturalLabel
+
+                    text: item.modelData.text
+                    visible: false
+                }
 
                 Loader {
                     id: children
@@ -94,6 +112,7 @@ StackView {
                     active: !item.modelData.isSeparator
 
                     sourceComponent: Item {
+                        implicitWidth: icon.implicitWidth + (icon.active ? label.anchors.leftMargin : 0) + labelMetrics.advanceWidth + (expand.active ? expand.implicitWidth + expand.anchors.leftMargin : 0)
                         implicitHeight: label.implicitHeight
 
                         StateLayer {
@@ -152,7 +171,7 @@ StackView {
                             font.family: label.font.family
 
                             elide: Text.ElideRight
-                            elideWidth: root.Tokens.sizes.bar.trayMenuWidth - (icon.active ? icon.implicitWidth + label.anchors.leftMargin : 0) - (expand.active ? expand.implicitWidth + root.Tokens.spacing.normal : 0)
+                            elideWidth: menu.itemWidth - (icon.active ? icon.implicitWidth + label.anchors.leftMargin : 0) - (expand.active ? expand.implicitWidth + expand.anchors.leftMargin : 0)
                         }
 
                         Loader {
@@ -161,6 +180,7 @@ StackView {
                             asynchronous: true
                             anchors.verticalCenter: parent.verticalCenter
                             anchors.right: parent.right
+                            anchors.leftMargin: Tokens.spacing.normal
 
                             active: item.modelData.hasChildren
 

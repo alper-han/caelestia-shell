@@ -14,6 +14,7 @@ Item {
     id: root
 
     required property ShellScreen screen
+    required property bool isVertical
     readonly property HyprlandMonitor monitor: Hypr.monitorFor(screen)
     readonly property string activeSpecial: (GlobalConfig.bar.workspaces.perMonitorWorkspaces ? monitor : Hypr.focusedMonitor)?.lastIpcObject.specialWorkspace?.name ?? ""
 
@@ -34,7 +35,7 @@ Item {
             radius: Tokens.rounding.full
 
             gradient: Gradient {
-                orientation: Gradient.Vertical
+                orientation: root.isVertical ? Gradient.Vertical : Gradient.Horizontal
 
                 GradientStop {
                     position: 0
@@ -58,11 +59,13 @@ Item {
         Rectangle {
             anchors.top: parent.top
             anchors.left: parent.left
-            anchors.right: parent.right
+            anchors.right: root.isVertical ? parent.right : undefined
+            anchors.bottom: root.isVertical ? undefined : parent.bottom
 
             radius: Tokens.rounding.full
-            implicitHeight: parent.height / 2
-            opacity: view.contentY > 0 ? 0 : 1
+            implicitWidth: root.isVertical ? 0 : parent.width / 2
+            implicitHeight: root.isVertical ? parent.height / 2 : 0
+            opacity: (root.isVertical ? view.contentY : view.contentX) > 0 ? 0 : 1
 
             Behavior on opacity {
                 Anim {}
@@ -71,12 +74,14 @@ Item {
 
         Rectangle {
             anchors.bottom: parent.bottom
-            anchors.left: parent.left
             anchors.right: parent.right
+            anchors.left: root.isVertical ? parent.left : undefined
+            anchors.top: root.isVertical ? undefined : parent.top
 
             radius: Tokens.rounding.full
-            implicitHeight: parent.height / 2
-            opacity: view.contentY < view.contentHeight - parent.height + Tokens.padding.small ? 0 : 1
+            implicitWidth: root.isVertical ? 0 : parent.width / 2
+            implicitHeight: root.isVertical ? parent.height / 2 : 0
+            opacity: root.isVertical ? view.contentY < view.contentHeight - parent.height + Tokens.padding.small ? 0 : 1 : view.contentX < view.contentWidth - parent.width + Tokens.padding.small ? 0 : 1
 
             Behavior on opacity {
                 Anim {}
@@ -88,6 +93,7 @@ Item {
         id: view
 
         anchors.fill: parent
+        orientation: root.isVertical ? ListView.Vertical : ListView.Horizontal
         spacing: Tokens.spacing.normal
         interactive: false
 
@@ -99,13 +105,19 @@ Item {
         }
 
         preferredHighlightBegin: 0
-        preferredHighlightEnd: height
+        preferredHighlightEnd: root.isVertical ? height : width
         highlightRangeMode: ListView.StrictlyEnforceRange
 
         highlightFollowsCurrentItem: false
         highlight: Item {
-            y: view.currentItem?.y ?? 0
-            implicitHeight: (view.currentItem as SpecialWsDelegate)?.size ?? 0
+            x: root.isVertical ? 0 : view.currentItem?.x ?? 0
+            y: root.isVertical ? view.currentItem?.y ?? 0 : 0
+            implicitWidth: root.isVertical ? 0 : (view.currentItem as SpecialWsDelegate)?.size ?? 0
+            implicitHeight: root.isVertical ? (view.currentItem as SpecialWsDelegate)?.size ?? 0 : 0
+
+            Behavior on x {
+                Anim {}
+            }
 
             Behavior on y {
                 Anim {}
@@ -168,11 +180,15 @@ Item {
             StyledClippingRect {
                 id: indicator
 
-                anchors.left: parent.left
-                anchors.right: parent.right
+                anchors.left: root.isVertical ? parent.left : undefined
+                anchors.right: root.isVertical ? parent.right : undefined
+                anchors.top: root.isVertical ? undefined : parent.top
+                anchors.bottom: root.isVertical ? undefined : parent.bottom
 
-                y: (view.currentItem?.y ?? 0) - view.contentY
-                implicitHeight: (view.currentItem as SpecialWsDelegate)?.size ?? 0
+                x: root.isVertical ? 0 : (view.currentItem?.x ?? 0) - view.contentX
+                y: root.isVertical ? (view.currentItem?.y ?? 0) - view.contentY : 0
+                implicitWidth: root.isVertical ? 0 : (view.currentItem as SpecialWsDelegate)?.size ?? 0
+                implicitHeight: root.isVertical ? (view.currentItem as SpecialWsDelegate)?.size ?? 0 : 0
 
                 color: Colours.palette.m3tertiary
                 radius: Tokens.rounding.full
@@ -182,15 +198,28 @@ Item {
                     sourceColor: Colours.palette.m3onSurface
                     colorizationColor: Colours.palette.m3onTertiary
 
-                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.horizontalCenter: root.isVertical ? parent.horizontalCenter : undefined
+                    anchors.verticalCenter: root.isVertical ? undefined : parent.verticalCenter
 
-                    x: 0
-                    y: -indicator.y
+                    x: root.isVertical ? 0 : -indicator.x
+                    y: root.isVertical ? -indicator.y : 0
                     implicitWidth: view.width
                     implicitHeight: view.height
                 }
 
+                Behavior on x {
+                    Anim {
+                        type: Anim.Emphasized
+                    }
+                }
+
                 Behavior on y {
+                    Anim {
+                        type: Anim.Emphasized
+                    }
+                }
+
+                Behavior on implicitWidth {
                     Anim {
                         type: Anim.Emphasized
                     }
@@ -206,19 +235,21 @@ Item {
     }
 
     MouseArea {
-        property real startY
+        property real startCoord
 
         anchors.fill: view
 
         drag.target: view.contentItem
-        drag.axis: Drag.YAxis
-        drag.maximumY: 0
-        drag.minimumY: Math.min(0, view.height - view.contentHeight - Tokens.padding.small)
+        drag.axis: root.isVertical ? Drag.YAxis : Drag.XAxis
+        drag.maximumY: root.isVertical ? 0 : view.contentItem.y
+        drag.minimumY: root.isVertical ? Math.min(0, view.height - view.contentHeight - Tokens.padding.small) : view.contentItem.y
+        drag.maximumX: root.isVertical ? view.contentItem.x : 0
+        drag.minimumX: root.isVertical ? view.contentItem.x : Math.min(0, view.width - view.contentWidth - Tokens.padding.small)
 
-        onPressed: event => startY = event.y
+        onPressed: event => startCoord = root.isVertical ? event.y : event.x
 
         onClicked: event => {
-            if (Math.abs(event.y - startY) > drag.threshold)
+            if (Math.abs((root.isVertical ? event.y : event.x) - startCoord) > drag.threshold)
                 return;
 
             const ws = view.itemAt(event.x, event.y) as SpecialWsDelegate;
@@ -229,19 +260,22 @@ Item {
         }
     }
 
-    component SpecialWsDelegate: ColumnLayout {
+    component SpecialWsDelegate: GridLayout {
         id: ws
 
         required property HyprlandWorkspace modelData
-        readonly property int size: label.Layout.preferredHeight + (hasWindows ? windows.implicitHeight + Tokens.padding.small : 0)
+        readonly property int size: root.isVertical ? label.Layout.preferredHeight + (hasWindows ? windows.implicitHeight + Tokens.padding.small : 0) : label.Layout.preferredWidth + (hasWindows ? windows.implicitWidth + Tokens.padding.small : 0)
         property int wsId
         property string icon
         property bool hasWindows
 
-        anchors.left: view.contentItem.left
-        anchors.right: view.contentItem.right
+        width: root.isVertical ? view.width : size
+        height: root.isVertical ? size : view.height
 
-        spacing: 0
+        columns: root.isVertical ? 1 : 2
+        rows: root.isVertical ? 2 : 1
+        rowSpacing: 0
+        columnSpacing: 0
 
         Component.onCompleted: {
             wsId = modelData.id;
@@ -249,7 +283,6 @@ Item {
             hasWindows = Config.bar.workspaces.showWindowsOnSpecialWorkspaces && modelData.lastIpcObject.windows > 0;
         }
 
-        // Hacky thing cause modelData gets destroyed before the remove anim finishes
         Connections {
             function onIdChanged(): void {
                 if (ws.modelData)
@@ -283,8 +316,9 @@ Item {
 
             asynchronous: true
 
-            Layout.alignment: Qt.AlignHCenter | Qt.AlignTop
+            Layout.alignment: Qt.AlignCenter
             Layout.preferredHeight: Tokens.sizes.bar.innerWidth - Tokens.padding.small * 2
+            Layout.preferredWidth: Tokens.sizes.bar.innerWidth - Tokens.padding.small * 2
 
             sourceComponent: ws.icon.length === 1 ? letterComp : iconComp
 
@@ -295,6 +329,7 @@ Item {
                     fill: 1
                     text: ws.icon
                     verticalAlignment: Qt.AlignVCenter
+                    horizontalAlignment: Qt.AlignHCenter
                 }
             }
 
@@ -304,6 +339,7 @@ Item {
                 StyledText {
                     text: ws.icon
                     verticalAlignment: Qt.AlignVCenter
+                    horizontalAlignment: Qt.AlignHCenter
                 }
             }
         }
@@ -313,14 +349,18 @@ Item {
 
             asynchronous: true
 
-            Layout.alignment: Qt.AlignHCenter
-            Layout.fillHeight: true
-            Layout.preferredHeight: implicitHeight
+            Layout.alignment: Qt.AlignCenter
+            Layout.fillHeight: root.isVertical
+            Layout.fillWidth: !root.isVertical
+            Layout.preferredHeight: root.isVertical ? implicitHeight : -1
+            Layout.preferredWidth: root.isVertical ? -1 : implicitWidth
 
             visible: active
             active: ws.hasWindows
 
-            sourceComponent: Column {
+            sourceComponent: Grid {
+                columns: root.isVertical ? 1 : children.length
+                rows: root.isVertical ? children.length : 1
                 spacing: 0
 
                 add: Transition {
@@ -363,6 +403,10 @@ Item {
             }
 
             Behavior on Layout.preferredHeight {
+                Anim {}
+            }
+
+            Behavior on Layout.preferredWidth {
                 Anim {}
             }
         }

@@ -9,14 +9,10 @@ Item {
     required property DrawerVisibilities visibilities
 
     implicitWidth: icon.implicitHeight + Tokens.padding.small * 2
-    implicitHeight: icon.implicitHeight
+    implicitHeight: icon.implicitHeight + Tokens.padding.small * 2
 
     StateLayer {
-        // Cursed workaround to make the height larger than the parent
-        anchors.fill: undefined
-        anchors.centerIn: parent
-        implicitWidth: implicitHeight
-        implicitHeight: icon.implicitHeight + Tokens.padding.small * 2
+        anchors.fill: parent
         radius: Tokens.rounding.full
         onClicked: root.visibilities.session = !root.visibilities.session
     }

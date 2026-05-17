@@ -12,6 +12,7 @@ import qs.modules.sidebar as Sidebar
 import qs.modules.utilities as Utilities
 import qs.modules.bar.popouts as BarPopouts
 import qs.modules.utilities.toasts as Toasts
+import qs.utils
 
 Item {
     id: root
@@ -33,10 +34,14 @@ Item {
     readonly property alias utilities: utilities
     readonly property alias toasts: toasts
     readonly property alias sidebar: sidebar
+    readonly property real visibleBarWidth: bar.shouldBeVisible ? bar.contentWidth : borderThickness
+    readonly property real visibleBarHeight: bar.shouldBeVisible ? bar.contentHeight : borderThickness
 
     anchors.fill: parent
-    anchors.margins: borderThickness
-    anchors.leftMargin: bar.implicitWidth
+    anchors.leftMargin: BarPosition.isLeft(bar.position) ? visibleBarWidth : borderThickness
+    anchors.rightMargin: BarPosition.isRight(bar.position) ? visibleBarWidth : borderThickness
+    anchors.topMargin: BarPosition.isTop(bar.position) ? visibleBarHeight : borderThickness
+    anchors.bottomMargin: BarPosition.isBottom(bar.position) ? visibleBarHeight : borderThickness
 
     Item {
         id: osdWrapper
@@ -120,6 +125,8 @@ Item {
 
         screen: root.screen
         borderThickness: root.borderThickness
+        position: root.bar.position
+        onAttachedClosed: root.bar.closeTray()
     }
 
     Utilities.Wrapper {

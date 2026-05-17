@@ -26,6 +26,7 @@ Item {
     property bool clockShowDate: Config.bar.clock.showDate ?? false
     property bool persistent: Config.bar.persistent ?? true
     property bool showOnHover: Config.bar.showOnHover ?? true
+    property string position: BarPosition.resolvedPosition(Config.bar.position)
     property int dragThreshold: Config.bar.dragThreshold ?? 20
     property bool showAudio: Config.bar.status.showAudio ?? true
     property bool showMicrophone: Config.bar.status.showMicrophone ?? true
@@ -61,6 +62,7 @@ Item {
         GlobalConfig.bar.clock.showIcon = root.clockShowIcon;
         GlobalConfig.bar.persistent = root.persistent;
         GlobalConfig.bar.showOnHover = root.showOnHover;
+        GlobalConfig.bar.position = BarPosition.resolvedPosition(root.position);
         GlobalConfig.bar.dragThreshold = root.dragThreshold;
         GlobalConfig.bar.status.showAudio = root.showAudio;
         GlobalConfig.bar.status.showMicrophone = root.showMicrophone;
@@ -589,6 +591,92 @@ Item {
                             StyledText {
                                 text: qsTr("Bar Behavior")
                                 font.pointSize: Tokens.font.size.normal
+                            }
+
+                            SplitButtonRow {
+                                id: barPositionSelector
+
+                                function syncActiveItem(): void {
+                                    if (root.position === "right") {
+                                        active = barPositionRightItem;
+                                        return;
+                                    }
+
+                                    if (root.position === "top") {
+                                        active = barPositionTopItem;
+                                        return;
+                                    }
+
+                                    if (root.position === "bottom") {
+                                        active = barPositionBottomItem;
+                                        return;
+                                    }
+
+                                    active = barPositionLeftItem;
+                                }
+
+                                Layout.fillWidth: true
+                                z: expanded ? 100 : 0
+                                label: qsTr("Position")
+                                menuItems: [barPositionLeftItem, barPositionRightItem, barPositionTopItem, barPositionBottomItem]
+
+                                Component.onCompleted: syncActiveItem()
+
+                                Connections {
+                                    function onPositionChanged(): void {
+                                        barPositionSelector.syncActiveItem();
+                                    }
+
+                                    target: root
+                                }
+
+                                MenuItem {
+                                    id: barPositionLeftItem
+
+                                    text: qsTr("Left")
+                                    icon: "align_horizontal_left"
+                                    activeText: qsTr("Left")
+                                    onClicked: {
+                                        root.position = "left";
+                                        root.saveConfig();
+                                    }
+                                }
+
+                                MenuItem {
+                                    id: barPositionRightItem
+
+                                    text: qsTr("Right")
+                                    icon: "align_horizontal_right"
+                                    activeText: qsTr("Right")
+                                    onClicked: {
+                                        root.position = "right";
+                                        root.saveConfig();
+                                    }
+                                }
+
+                                MenuItem {
+                                    id: barPositionTopItem
+
+                                    text: qsTr("Top")
+                                    icon: "vertical_align_top"
+                                    activeText: qsTr("Top")
+                                    onClicked: {
+                                        root.position = "top";
+                                        root.saveConfig();
+                                    }
+                                }
+
+                                MenuItem {
+                                    id: barPositionBottomItem
+
+                                    text: qsTr("Bottom")
+                                    icon: "vertical_align_bottom"
+                                    activeText: qsTr("Bottom")
+                                    onClicked: {
+                                        root.position = "bottom";
+                                        root.saveConfig();
+                                    }
+                                }
                             }
 
                             SwitchRow {

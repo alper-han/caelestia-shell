@@ -8,6 +8,7 @@ import Caelestia.Internal
 import Caelestia.Services
 import qs.components
 import qs.services
+import qs.utils
 
 Item {
     id: root
@@ -58,9 +59,17 @@ Item {
                 VisualiserBars {
                     id: bars
 
+                    readonly property var bar: Visibilities.bars.get(root.screen)
+                    readonly property string barPosition: bar?.position ?? Config.bar.position
+                    readonly property real edgeSpacing: Tokens.spacing.small * Config.background.visualiser.spacing
+                    readonly property real selectedEdgeMargin: (bar?.exclusiveZone ?? Config.border.thickness) + edgeSpacing
+
                     anchors.fill: parent
                     anchors.margins: Config.border.thickness
-                    anchors.leftMargin: Visibilities.bars.get(root.screen).exclusiveZone + Tokens.spacing.small * Config.background.visualiser.spacing
+                    anchors.leftMargin: BarPosition.isLeft(barPosition) ? selectedEdgeMargin : Config.border.thickness
+                    anchors.rightMargin: BarPosition.isRight(barPosition) ? selectedEdgeMargin : Config.border.thickness
+                    anchors.topMargin: BarPosition.isTop(barPosition) ? selectedEdgeMargin : Config.border.thickness
+                    anchors.bottomMargin: BarPosition.isBottom(barPosition) ? selectedEdgeMargin : Config.border.thickness
 
                     values: Audio.cava.values
                     primaryColor: Qt.alpha(Colours.palette.m3primary, 0.7)
@@ -70,6 +79,18 @@ Item {
                     animationDuration: Tokens.anim.durations.normal
 
                     Behavior on anchors.leftMargin {
+                        Anim {}
+                    }
+
+                    Behavior on anchors.rightMargin {
+                        Anim {}
+                    }
+
+                    Behavior on anchors.topMargin {
+                        Anim {}
+                    }
+
+                    Behavior on anchors.bottomMargin {
                         Anim {}
                     }
                 }
